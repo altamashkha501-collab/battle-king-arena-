@@ -1,0 +1,249 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Battle King Arena - Realistic Character</title>
+<style>
+body{margin:0;overflow:hidden;font-family:Arial}
+canvas{display:block;touch-action:none}
+#hud{position:fixed;top:12px;left:12px;background:#101827dd;color:white;padding:12px;border-radius:10px}
+#joy{position:fixed;bottom:25px;left:20px;width:110px;height:110px;border:2px solid white;border-radius:50%;background:#ffffff44;touch-action:none}
+#knob{position:absolute;left:31px;top:31px;width:48px;height:48px;border-radius:50%;background:white}
+#help{position:fixed;bottom:12px;right:12px;background:#101827cc;color:white;padding:10px;border-radius:8px}
+</style>
+</head>
+<body>
+<div id="hud">👑 BATTLE KING ARENA<br>REALISTIC SOLDIER</div>
+<div id="joy"><div id="knob"></div></div>
+<div id="help">Joystick: Move<br>Drag: Rotate camera</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+if(!window.THREE){document.body.innerHTML="Internet required. Reload.";throw Error("Three.js missing");}
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x87ceeb);
+scene.fog=new THREE.Fog(0x87ceeb,40,130);
+
+const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,300);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x52613c,1.5));
+const sun=new THREE.DirectionalLight(0xffffff,1.5);
+sun.position.set(20,35,15);
+sun.castShadow=true;
+scene.add(sun);
+
+// Ground
+const ground=new THREE.Mesh(
+ new THREE.PlaneGeometry(200,200),
+ new THREE.MeshStandardMaterial({color:0x548c43})
+);
+ground.rotation.x=-Math.PI/2;
+ground.receiveShadow=true;
+scene.add(ground);
+
+// Materials
+const uniform=new THREE.MeshStandardMaterial({color:0x526b42,roughness:.9});
+const dark=new THREE.MeshStandardMaterial({color:0x252d2b,roughness:.9});
+const skin=new THREE.MeshStandardMaterial({color:0xb9825e,roughness:.9});
+const bootMat=new THREE.MeshStandardMaterial({color:0x282725});
+const metal=new THREE.MeshStandardMaterial({color:0x333d43,metalness:.5,roughness:.5});
+
+// Character parts
+const player=new THREE.Group();
+const torso=new THREE.Group();
+torso.position.y=1.45;
+player.add(torso);
+
+function box(parent,w,h,d,mat,x,y,z){
+ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+ m.position.set(x,y,z);
+ m.castShadow=true;
+ m.receiveShadow=true;
+ parent.add(m);
+ return m;
+}
+function sphere(parent,r,mat,x,y,z){
+ const m=new THREE.Mesh(new THREE.SphereGeometry(r,18,14),mat);
+ m.position.set(x,y,z);
+ m.castShadow=true;
+ parent.add(m);
+ return m;
+}
+
+// Body and tactical vest
+box(torso,.65,.85,.35,uniform,0,0,0);
+box(torso,.69,.48,.37,dark,0,.05,-.015);
+box(torso,.16,.48,.39,uniform,-.2,.05,-.22);
+box(torso,.16,.48,.39,uniform,.2,.05,-.22);
+
+// Head and helmet
+sphere(torso,.24,skin,0,.63,0);
+const helmet=new THREE.Mesh(
+ new THREE.SphereGeometry(.26,18,12,0,Math.PI*2,0,Math.PI*.58),
+ uniform
+);
+helmet.position.set(0,.75,0);
+helmet.castShadow=true;
+torso.add(helmet);
+box(torso,.48,.055,.3,dark,0,.67,0);
+
+// Neck
+box(torso,.19,.17,.19,skin,0,.46,0);
+
+// Arms
+const arms=[];
+for(const side of [-1,1]){
+ const pivot=new THREE.Group();
+ pivot.position.set(side*.43,.32,0);
+ torso.add(pivot);
+ box(pivot,.22,.48,.24,uniform,0,-.22,0);
+ sphere(pivot,.13,skin,0,-.49,0);
+ arms.push(pivot);
+}
+
+// Legs
+const legs=[];
+for(const side of [-1,1]){
+ const pivot=new THREE.Group();
+ pivot.position.set(side*.19,-.43,0);
+ player.add(pivot);
+ box(pivot,.27,.62,.28,uniform,0,-.3,0);
+ box(pivot,.29,.18,.38,bootMat,0,-.64,-.04);
+ legs.push(pivot);
+}
+
+// Backpack
+box(torso,.48,.62,.2,dark,0,.03,.25);
+box(torso,.18,.22,.22,uniform,-.29,.05,.2);
+box(torso,.18,.22,.22,uniform,.29,.05,.2);
+
+// Gun - decorative game prop
+const gun=new THREE.Group();
+box(gun,.13,.13,.7,metal,0,0,-.25);
+box(gun,.15,.19,.2,dark,0,-.12,-.1);
+box(gun,.07,.09,.3,dark,0,.09,-.18);
+gun.position.set(.42,.08,-.28);
+torso.add(gun);
+
+scene.add(player);
+
+// Trees
+for(let i=0;i<35;i++){
+ const a=Math.random()*Math.PI*2;
+ const r=12+Math.random()*55;
+ const x=Math.cos(a)*r,z=Math.sin(a)*r;
+ const trunk=new THREE.Mesh(
+  new THREE.CylinderGeometry(.18,.25,2,8),
+  new THREE.MeshStandardMaterial({color:0x68452b})
+ );
+ trunk.position.set(x,1,z);
+ trunk.castShadow=true;
+ scene.add(trunk);
+ const leaves=new THREE.Mesh(
+  new THREE.ConeGeometry(1.25,3,8),
+  new THREE.MeshStandardMaterial({color:0x176b35})
+ );
+ leaves.position.set(x,3,z);
+ scene.add(leaves);
+}
+
+// Joystick
+let joyX=0,joyY=0,angle=0;
+const joy=document.getElementById("joy");
+const knob=document.getElementById("knob");
+
+function moveJoy(e){
+ const r=joy.getBoundingClientRect();
+ let x=e.clientX-r.left-55;
+ let y=e.clientY-r.top-55;
+ const len=Math.hypot(x,y);
+ if(len>35){x=x/len*35;y=y/len*35;}
+ joyX=x/35;joyY=y/35;
+ knob.style.left=31+x+"px";
+ knob.style.top=31+y+"px";
+}
+joy.addEventListener("pointerdown",e=>{
+ joy.setPointerCapture(e.pointerId);
+ moveJoy(e);
+});
+joy.addEventListener("pointermove",e=>{
+ if(e.buttons)moveJoy(e);
+});
+function resetJoy(){
+ joyX=0;joyY=0;
+ knob.style.left="31px";
+ knob.style.top="31px";
+}
+joy.addEventListener("pointerup",resetJoy);
+joy.addEventListener("pointercancel",resetJoy);
+
+// Camera rotation
+let dragging=false,lastX=0;
+renderer.domElement.addEventListener("pointerdown",e=>{
+ dragging=true;lastX=e.clientX;
+});
+window.addEventListener("pointerup",()=>dragging=false);
+window.addEventListener("pointermove",e=>{
+ if(dragging){
+  angle-=(e.clientX-lastX)*.006;
+  lastX=e.clientX;
+ }
+});
+
+// Animation
+const clock=new THREE.Clock();
+function animate(){
+ requestAnimationFrame(animate);
+ const dt=Math.min(clock.getDelta(),.04);
+ const moving=Math.abs(joyX)+Math.abs(joyY)>.12;
+ const speed=moving?1:0;
+ const t=clock.elapsedTime*9;
+
+ const forward=new THREE.Vector3(-Math.sin(angle),0,-Math.cos(angle));
+ const right=new THREE.Vector3(Math.cos(angle),0,-Math.sin(angle));
+
+ player.position.addScaledVector(forward,-joyY*2.7*dt);
+ player.position.addScaledVector(right,joyX*2.7*dt);
+
+ if(moving){
+  player.rotation.y=angle+Math.atan2(joyX,-joyY);
+ }
+
+ // Walking and running motion
+ legs[0].rotation.x=Math.sin(t)*.65*speed;
+ legs[1].rotation.x=-Math.sin(t)*.65*speed;
+ arms[0].rotation.x=-Math.sin(t)*.35*speed;
+ arms[1].rotation.x=Math.sin(t)*.35*speed;
+ torso.position.y=1.45+(moving?Math.abs(Math.sin(t))*.035:0);
+
+ player.position.x=THREE.MathUtils.clamp(player.position.x,-90,90);
+ player.position.z=THREE.MathUtils.clamp(player.position.z,-90,90);
+
+ const desired=new THREE.Vector3(
+  player.position.x+Math.sin(angle)*6,
+  player.position.y+3.4,
+  player.position.z+Math.cos(angle)*6
+ );
+ camera.position.lerp(desired,.12);
+ camera.lookAt(player.position.x,player.position.y+1.35,player.position.z);
+
+ renderer.render(scene,camera);
+}
+animate();
+
+window.addEventListener("resize",()=>{
+ camera.aspect=innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>
